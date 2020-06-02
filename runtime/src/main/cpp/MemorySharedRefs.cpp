@@ -33,11 +33,6 @@ RUNTIME_NORETURN inline void throwIllegalSharingException(ObjHeader* object) {
   ThrowIllegalObjectSharingException(object->type_info(), object);
 }
 
-RUNTIME_NORETURN inline void terminateWithIllegalSharingException(ObjHeader* object) {
-  konan::tryOrTerminate([object]() { throwIllegalSharingException(object); });
-  __builtin_unreachable();
-}
-
 }  // namespace
 
 void KRefSharedHolder::initLocal(ObjHeader* obj) {
@@ -53,10 +48,7 @@ void KRefSharedHolder::init(ObjHeader* obj) {
 }
 
 ObjHeader* KRefSharedHolder::ref() const {
-  if (auto* result = refOrNull())
-    return result;
-
-  terminateWithIllegalSharingException(obj_);
+  return konan::tryOrTerminate([this]() { return refOrThrow(); });
 }
 
 ObjHeader* KRefSharedHolder::refOrThrow() const {
@@ -145,19 +137,23 @@ void BackRefFromAssociatedObject::releaseRef() {
   }
 }
 
+ObjHeader* BackRefFromAssociatedObject::ref() const {
+  return konan::tryOrTerminate([this]() { return refOrThrow(); });
+}
+
+ObjHeader* BackRefFromAssociatedObject::refOrThrow() const {
+  if (auto* result = refOrNull())
+    return result;
+
+  throwIllegalSharingException(obj_);
+}
+
 ObjHeader* BackRefFromAssociatedObject::refOrNull() const {
   if (!isRefAccessible()) {
     return nullptr;
   }
   AdoptReferenceFromSharedVariable(obj_);
   return obj_;
-}
-
-ObjHeader* BackRefFromAssociatedObject::ref() const {
-  if (auto* result = refOrNull())
-    return result;
-
-  terminateWithIllegalSharingException(obj_);
 }
 
 bool BackRefFromAssociatedObject::isRefAccessible() const {

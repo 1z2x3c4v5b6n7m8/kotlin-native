@@ -51,6 +51,7 @@ class BackRefFromAssociatedObject {
 
   // Terminates if called from the wrong worker with non-frozen obj_.
   ObjHeader* ref() const;
+  ObjHeader* refOrThrow() const;
   ObjHeader* refOrNull() const;
 
   inline bool permanent() const {
