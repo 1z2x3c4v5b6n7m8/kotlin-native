@@ -63,7 +63,6 @@ class BackRefFromAssociatedObject {
   volatile int refCount;
 
   bool isRefAccessible() const;
-  void ensureRefAccessible() const;
   void ensureRefAccessibleOrThrow() const;
 };
 

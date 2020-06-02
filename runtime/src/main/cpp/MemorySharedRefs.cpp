@@ -34,18 +34,8 @@ RUNTIME_NORETURN inline void throwIllegalSharingException(ObjHeader* object) {
 }
 
 RUNTIME_NORETURN inline void terminateWithIllegalSharingException(ObjHeader* object) {
-#if KONAN_NO_EXCEPTIONS
-  // This will terminate the program.
-  throwIllegalSharingException(object);
-#else
-  // A trick to terminate with unhandled exception. This will print a stack trace
-  // and write to iOS crash log.
-  try {
-    throwIllegalSharingException(object);
-  } catch (...) {
-    std::terminate();
-  }
-#endif
+  konan::tryOrTerminate([object]() { throwIllegalSharingException(object); });
+  __builtin_unreachable();
 }
 
 }  // namespace
@@ -112,15 +102,7 @@ void BackRefFromAssociatedObject::initAndAddRef(ObjHeader* obj) {
 }
 
 void BackRefFromAssociatedObject::addRef() {
-  if (atomicAdd(&refCount, 1) == 1) {
-    // There are no references to the associated object itself, so Kotlin object is being passed from Kotlin,
-    // and it is owned therefore.
-    ensureRefAccessible(); // TODO: consider removing explicit verification.
-
-    // Foreign reference has already been deinitialized (see [releaseRef]).
-    // Create a new one:
-    context_ = InitForeignRef(obj_);
-  }
+  konan::tryOrTerminate([this]() { addRefOrThrow(); });
 }
 
 void BackRefFromAssociatedObject::addRefOrThrow() {
@@ -136,16 +118,7 @@ void BackRefFromAssociatedObject::addRefOrThrow() {
 }
 
 bool BackRefFromAssociatedObject::tryAddRef() {
-  // Suboptimal but simple:
-  this->ensureRefAccessible();
-  ObjHeader* obj = this->obj_;
-
-  if (!TryAddHeapRef(obj)) return false;
-  this->addRef();
-  ReleaseHeapRef(obj); // Balance TryAddHeapRef.
-  // TODO: consider optimizing for non-shared objects.
-
-  return true;
+  return konan::tryOrTerminate([this]() { return tryAddRefOrThrow(); });
 }
 
 bool BackRefFromAssociatedObject::tryAddRefOrThrow() {
@@ -189,13 +162,6 @@ ObjHeader* BackRefFromAssociatedObject::ref() const {
 
 bool BackRefFromAssociatedObject::isRefAccessible() const {
   return isForeignRefAccessible(obj_, context_);
-}
-
-void BackRefFromAssociatedObject::ensureRefAccessible() const {
-  if (isRefAccessible())
-    return;
-
-  terminateWithIllegalSharingException(obj_);
 }
 
 void BackRefFromAssociatedObject::ensureRefAccessibleOrThrow() const {
