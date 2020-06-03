@@ -119,7 +119,8 @@ bool BackRefFromAssociatedObject::tryAddRefOrThrow() {
   ObjHeader* obj = this->obj_;
 
   if (!TryAddHeapRef(obj)) return false;
-  this->addRefOrThrow();
+  RuntimeAssert(this->isRefAccessible(), "Cannot be inaccessible because of the check above");
+  this->addRef();
   ReleaseHeapRef(obj); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
