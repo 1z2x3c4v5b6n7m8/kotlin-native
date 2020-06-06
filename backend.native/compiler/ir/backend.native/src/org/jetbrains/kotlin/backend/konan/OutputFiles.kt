@@ -27,8 +27,8 @@ class OutputFiles(outputPath: String?, target: KonanTarget, val produce: Compile
     /**
      * Header file for dynamic library.
      */
-    val cAdapterHeader      by lazy { File("${outputName}_api.h") }
-    val cAdapterDef         by lazy { File("${outputName}.def") }
+    val cAdapterHeader by lazy { File("${outputName}_api.h") }
+    val cAdapterDef    by lazy { File("${outputName}.def") }
 
     /**
      * Main compiler's output file.
@@ -37,23 +37,27 @@ class OutputFiles(outputPath: String?, target: KonanTarget, val produce: Compile
             .prefixBaseNameIfNeeded(prefix)
             .suffixIfNeeded(suffix)
 
-    val mainFileMangled = if (!produce.isCache) mainFile else {
-        (outputName + Random.nextLong().toString())
-                .prefixBaseNameIfNeeded(prefix)
-                .suffixIfNeeded(suffix)
-    }
+    val cacheDirectory =
+            if (produce.isCache)
+                File(outputName + Random.nextLong().toString())
+            else null
 
-    private fun String.prefixBaseNameIfNeeded(prefix: String): String {
-        return if (produce.isCache)
-            prefixBaseNameAlways(prefix)
-        else prefixBaseNameIfNot(prefix)
-    }
+    val mainFileMangled =
+            if (produce.isCache)
+                cacheDirectory!!.child(File(mainFile).absoluteFile.name).absolutePath
+            else mainFile
 
-    private fun String.suffixIfNeeded(prefix: String): String {
-        return if (produce.isCache)
-            suffixAlways(prefix)
-        else suffixIfNot(prefix)
-    }
+    val symbolicInfoFile = "$mainFileMangled.dSYM"
+
+    private fun String.prefixBaseNameIfNeeded(prefix: String) =
+            if (produce.isCache)
+                prefixBaseNameAlways(prefix)
+            else prefixBaseNameIfNot(prefix)
+
+    private fun String.suffixIfNeeded(prefix: String) =
+            if (produce.isCache)
+                suffixAlways(prefix)
+            else suffixIfNot(prefix)
 
     private fun String.prefixBaseNameAlways(prefix: String): String {
         val file = File(this).absoluteFile

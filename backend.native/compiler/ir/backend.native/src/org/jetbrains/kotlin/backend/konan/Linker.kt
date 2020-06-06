@@ -45,6 +45,9 @@ internal class Linker(val context: Context) {
 
         val libraryProvidedLinkerFlags = context.llvm.allNativeDependencies.map { it.linkerOpts }.flatten()
 
+        if (context.config.produce.isCache)
+            context.config.outputFiles.cacheDirectory!!.mkdirs()
+
         runLinker(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
         renameOutput()
     }
@@ -52,14 +55,7 @@ internal class Linker(val context: Context) {
     private fun renameOutput() {
         if (context.config.produce.isCache) {
             val outputFiles = context.config.outputFiles
-            val outputFile = java.io.File(outputFiles.mainFileMangled)
-            val outputDsymBundle = java.io.File(outputFiles.mainFileMangled + ".dSYM")
-            if (renameAtomic(outputFile.absolutePath, outputFiles.mainFile, /* replaceExisting = */ false))
-                outputDsymBundle.renameTo(java.io.File(outputFiles.mainFile + ".dSYM"))
-            else {
-                outputFile.delete()
-                outputDsymBundle.deleteRecursively()
-            }
+            renameAtomic(outputFiles.cacheDirectory!!.absolutePath, outputFiles.outputName, /* replaceExisting = */ true)
         }
     }
 
@@ -127,7 +123,7 @@ internal class Linker(val context: Context) {
                             caches.dynamic +
                             libraryProvidedLinkerFlags + additionalLinkerArgs,
                     optimize = optimize, debug = debug, kind = linkerOutput,
-                    outputDsymBundle = context.config.outputFiles.mainFileMangled + ".dSYM",
+                    outputDsymBundle = context.config.outputFiles.symbolicInfoFile,
                     needsProfileLibrary = needsProfileLibrary).forEach {
                 it.logWith(context::log)
                 it.execute()

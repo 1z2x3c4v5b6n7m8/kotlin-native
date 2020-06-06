@@ -39,7 +39,7 @@ open class KonanCacheTask: DefaultTask() {
             val cachePrefix = cacheKind.outputKind.prefix(konanTarget)
             val cacheSuffix = cacheKind.outputKind.suffix(konanTarget)
             val cacheName = "${cachePrefix}${klibName}-cache${cacheSuffix}"
-            return cacheDirectory.resolve(cacheName)
+            return cacheDirectory.resolve("${klibName}-cache").resolve(cacheName)
         }
 
     @Input
