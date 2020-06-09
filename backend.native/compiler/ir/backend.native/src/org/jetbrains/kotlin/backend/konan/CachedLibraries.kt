@@ -21,6 +21,11 @@ class CachedLibraries(
 
     class Cache(val kind: Kind, val path: String) {
         enum class Kind { DYNAMIC, STATIC }
+
+        val binaryDependencies by lazy {
+            val directory = File(path).absoluteFile.parent
+            File(directory, "binary_deps").readStrings()
+        }
     }
 
     private val allCaches: Map<KotlinLibrary, Cache> = allLibraries.mapNotNull { library ->

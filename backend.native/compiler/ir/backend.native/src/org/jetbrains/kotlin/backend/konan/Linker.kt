@@ -7,6 +7,8 @@ import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.LinkerOutputKind
 import org.jetbrains.kotlin.backend.konan.files.renameAtomic
 import org.jetbrains.kotlin.konan.library.KonanLibrary
+import org.jetbrains.kotlin.library.resolver.TopologicalLibraryOrder
+import org.jetbrains.kotlin.library.uniqueName
 
 internal fun determineLinkerOutput(context: Context): LinkerOutputKind =
         when (context.config.produce) {
@@ -47,9 +49,24 @@ internal class Linker(val context: Context) {
 
         if (context.config.produce.isCache)
             context.config.outputFiles.cacheDirectory!!.mkdirs()
+        saveAdditionalInfoForCache()
 
         runLinker(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
         renameOutput()
+    }
+
+    private fun saveAdditionalInfoForCache() {
+        if (!context.config.produce.isCache) return
+        val outputFiles = context.config.outputFiles
+        val binaryDependenciesFile = outputFiles.cacheDirectory!!.child("binary_deps")
+        val binaryDependencies = context.config.resolvedLibraries
+                .getFullList(TopologicalLibraryOrder)
+                .filter {
+                    require(it is KonanLibrary)
+                    context.llvmImports.nativeDependenciesAreUsed(it)
+                            && it !in context.config.cacheSupport.librariesToCache // Skip loops.
+                } as List<KonanLibrary>
+        binaryDependenciesFile.writeLines(binaryDependencies.map { it.uniqueName })
     }
 
     private fun renameOutput() {
@@ -152,8 +169,7 @@ private fun determineCachesToLink(context: Context): CachesToLink {
     val staticCaches = mutableListOf<String>()
     val dynamicCaches = mutableListOf<String>()
 
-    // TODO: suboptimal, see e.g. [LlvmImports].
-    context.librariesWithDependencies.forEach { library ->
+    context.llvm.allNativeDependencies.forEach { library ->
         val currentBinaryContainsLibrary = context.llvmModuleSpecification.containsLibrary(library)
         val cache = context.config.cachedLibraries.getLibraryCache(library)
         val libraryIsCached = cache != null
@@ -174,6 +190,5 @@ private fun determineCachesToLink(context: Context): CachesToLink {
             list += cache.path
         }
     }
-
-    return CachesToLink(static = staticCaches.distinct(), dynamic = dynamicCaches.distinct())
+    return CachesToLink(static = staticCaches, dynamic = dynamicCaches)
 }

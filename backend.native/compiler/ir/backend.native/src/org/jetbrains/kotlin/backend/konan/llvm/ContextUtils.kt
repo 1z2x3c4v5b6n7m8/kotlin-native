@@ -395,14 +395,16 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
                     require(it is KonanLibrary)
                     (!it.isDefault && !context.config.purgeUserLibs) || imports.nativeDependenciesAreUsed(it)
                 } as List<KonanLibrary>
-
     }
 
     val allNativeDependencies: List<KonanLibrary> by lazy {
-        val cachedLibraries = context.librariesWithDependencies.filter {
-            context.config.cachedLibraries.isLibraryCached(it)
-        }
-        (nativeDependenciesToLink + cachedLibraries).distinct()
+        val allLibraries = context.librariesWithDependencies.associateBy { it.uniqueName }
+        (nativeDependenciesToLink +
+                nativeDependenciesToLink
+                        .mapNotNull { context.config.cachedLibraries.getLibraryCache(it) }
+                        .flatMap { it.binaryDependencies }
+                        .map { allLibraries[it] ?: error("Binary dependency to an unknown library: $it") })
+                .distinct()
     }
 
     val bitcodeToLink: List<KonanLibrary> by lazy {
