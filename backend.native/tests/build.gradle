@@ -3510,7 +3510,7 @@ createInterop("embedStaticLibraries") {
     it.defFile 'interop/embedStaticLibraries/embedStaticLibraries.def'
     it.headers "$projectDir/interop/embedStaticLibraries/embedStaticLibraries.h"
 
-    final String libDir = "$buildDir/embedStaticLibraries/"
+    final String libDir = "$buildDir/embedStaticLibraries/$target/"
 
     it.getByTarget(target.name).doFirst {
         1.upto(4) {

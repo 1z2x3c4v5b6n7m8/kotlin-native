@@ -340,7 +340,7 @@ fun Project.buildStaticLibrary(cSources: Collection<File>, output: File, objDir:
     exec {
         it.commandLine(
                 "${platform.configurables.absoluteLlvmHome}/bin/llvm-ar",
-                "-r",
+                "-rc",
                 output,
                 *fileTree(objDir).files.toTypedArray()
         )
